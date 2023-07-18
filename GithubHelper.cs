@@ -1,4 +1,6 @@
-﻿using Quartz;
+﻿using Octokit;
+using Quartz;
+using ServiceStack.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,39 +11,31 @@ using System.Threading.Tasks;
 
 namespace PublicRepository
 {
-    public class GetUserPublicReposfromGithub : IJob
+    public class GithubHelper 
     {
-        ApplicationConfig config = new ApplicationConfig();
-        public async Task Execute(IJobExecutionContext context)
+        ApplicationConfig config;
+        DBHelper dbHelper;
+
+        public GithubHelper()
         {
-            await Console.Out.WriteLineAsync("GetUserPublicRepos Job started--------------");
-
-            List<string> repositories = await GetPublicRepositories(config);
-
-            if (repositories != null && repositories.Count > 0)
-            {
-                Console.WriteLine($"Public repositories of user {config.username}:");
-                foreach (string repository in repositories)
-                {
-                    Console.WriteLine(repository);
-                }
-            }
-            else
-            {
-                Console.WriteLine($"No repositories found for user {config.username}");
-            }
+            config = new ApplicationConfig();
+            dbHelper = new DBHelper();
         }
 
-        static async Task<List<string>> GetPublicRepositories(ApplicationConfig config)
+        public string GetURI(string username)
+        {
+            string apiUrl = config.apiURL.Replace("{username}", username);
+            return apiUrl;
+        }
+
+        public async Task<List<string>> GetPublicRepositories(User user, string apiUrl)
         {
             List<string> repositories = new List<string>();
 
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("C# App");
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", config.token);
-
-                string apiUrl = config.apiURL.Replace("{username}", config.username);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user.token);
 
                 HttpResponseMessage response = await client.GetAsync(apiUrl);
 
@@ -52,11 +46,31 @@ namespace PublicRepository
                 }
                 else
                 {
-                    Console.WriteLine($"Failed to retrieve repositories. Status code: {response.StatusCode}");
+                    Console.WriteLine($"Failed to retrieve repositories for {user.user}. Status code: {response.StatusCode}");
                 }
             }
 
             return repositories;
         }
+
+        public void PrintUserRepos(Dictionary<string, List<string>> dictUserRepos)
+        {
+            foreach (var userRepos in dictUserRepos)
+            {
+                if (userRepos.Value != null && userRepos.Value.Count > 0)
+                {
+                    Console.WriteLine($"\n*****Public repositories of user {userRepos.Key}*****");
+                    userRepos.Value.ForEach(repository => Console.WriteLine(repository));                   
+                }
+                else
+                {
+                    Console.WriteLine($"\nNo repositories found for user {userRepos.Key}");
+                }                
+            }
+
+        }
+
+
+
     }
 }

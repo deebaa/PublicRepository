@@ -6,7 +6,7 @@ using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
-using Octokit;
+//using Octokit;
 using Quartz;
 using Quartz.Impl;
 using Quartz.Logging;
@@ -27,15 +27,20 @@ namespace PublicRepository
             // and start it off
             await scheduler.Start();
 
+            //Create a jobdatamap to set up the Job input parmaters
+            JobDataMap jobdatamap = new JobDataMap();
+            List<User> lstUsers = new DBHelper().GetUsers();
+            jobdatamap.Put("lstusers", lstUsers);
+
             // define the job and tie it to our GetUserPublicReposfromGithub class
             IJobDetail job = JobBuilder.Create<GetUserPublicReposfromGithub>()
-             .WithIdentity("job1", "group1")
+             .WithIdentity("GetPublicRepos", "PublicRepos")
+             .UsingJobData(jobdatamap)
              .Build();
-           
 
             // Trigger the job to run now, and then repeat every 10 seconds
             ITrigger trigger = TriggerBuilder.Create()
-             .WithIdentity("trigger1", "group1")
+             .WithIdentity("tgrGetPublicRepos", "PublicRepos")
              .StartNow()
              .WithSimpleSchedule(x => x
               .WithIntervalInSeconds(10))
@@ -52,10 +57,7 @@ namespace PublicRepository
             await scheduler.Shutdown();
 
             Console.WriteLine("Press any key to close the application");
-            Console.ReadKey();
-        
-        
-        
+            Console.ReadKey();    
         }
     }
 
